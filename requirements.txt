@@ -1,0 +1,15 @@
+pandas==1.5.3       # For handling DataFrame operations
+numpy==1.23.5       # For numerical computations
+scikit-learn==1.2.1 # For metrics like accuracy_score and f1_score
+evaluate==0.3.0     # For evaluation utilities
+torch==2.0.1        # For PyTorch (used with transformers)
+transformers # For handling Hugging Face models like AutoModelForCausalLM
+protobuf==5.29.1
+objsize
+sacrebleu~=2.0.0
+accelerate
+sentencepiece
+datasets
+evaluate
+diffusers
+peft
