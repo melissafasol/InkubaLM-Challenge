@@ -59,7 +59,12 @@ def evaluate_zindi(csv_file_path):
         # Zindi score: Average of all performances
         zindi_score = np.mean(scores)
 
-    return zindi_score
+    return zindi_score, {
+        "sentiment_f1": round(f1_sent, 4),
+        "nli_f1": round(f1_xnli, 4),
+        "mt_chrf": round(chrfs_score, 4),
+        "zindi_score": round(zindi_score, 4)
+    }
 
 
 # From scratch implementation of chrf
