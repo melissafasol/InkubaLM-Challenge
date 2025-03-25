@@ -39,6 +39,8 @@ def log_experiment_auto(
     }
 
     # Save to CSV
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+
     file_exists = os.path.isfile(LOG_FILE)
     with open(LOG_FILE, mode="a", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=entry.keys())
