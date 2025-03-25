@@ -10,8 +10,6 @@ from peft import LoraConfig, get_peft_model, PeftModel
 from datasets import load_dataset, concatenate_datasets, Dataset, Value
 from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-import torch
 
 def load_dataset_by_tag(dataset_type, tag, split='train'):
     return load_dataset(f"{dataset_type}{tag}", split=split)
@@ -190,13 +188,14 @@ def setup_model_and_tokenizer(model_name, use_4bit=True):
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
 
-    token = os.environ.get("HF_TOKEN", None)  # 👈 fetch token from env or default
+    hf_token = os.environ.get("HF_TOKEN", None)  # 👈 fetch token from env or default
 
+    
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         quantization_config=bnb_config,
         device_map="auto",
-        token=token if token != "----" else None  # 👈 pass token only if it's valid
+        token=hf_token if hf_token and hf_token != "----" else None,
     )
 
     return model, tokenizer, bnb_config
