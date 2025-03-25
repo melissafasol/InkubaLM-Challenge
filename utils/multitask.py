@@ -397,3 +397,27 @@ def display_formatted_examples(df, num_examples=2):
             formatted = formatting_prompts_func(row)
             print(formatted)
             print("-" * 40)
+            
+def balance_target_lengths(df, task_column='task', reference_task='mt', repetition_factor=11):
+    """
+    Balance target sequence lengths by repeating shorter targets.
+
+    Args:
+        df (DataFrame): DataFrame containing task and targets columns
+        task_column (str): Name of the task column
+        reference_task (str): Task with longer sequences to use as reference
+        repetition_factor (int): Number of times to repeat shorter sequences
+
+    Returns:
+        DataFrame: DataFrame with balanced target lengths
+    """
+    df_balanced = df.copy()
+
+    for task in df_balanced[task_column].unique():
+        if task != reference_task:
+            mask = df_balanced[task_column] == task
+            df_balanced.loc[mask, 'targets'] = df_balanced.loc[mask, 'targets'].apply(
+                lambda x: ' '.join([x] * repetition_factor)
+            )
+
+    return df_balanced
