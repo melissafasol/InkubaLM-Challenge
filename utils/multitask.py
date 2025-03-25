@@ -10,6 +10,9 @@ from peft import LoraConfig, get_peft_model, PeftModel
 from datasets import load_dataset, concatenate_datasets, Dataset, Value
 from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+import torch
+
 def load_dataset_by_tag(dataset_type, tag, split='train'):
     return load_dataset(f"{dataset_type}{tag}", split=split)
 
@@ -174,41 +177,30 @@ def formatting_prompts_func(example):
     return f"### Instruction: {example['instruction']}\n### Input: {example['inputs']}\n### Response:"
 
 
+import os
+
 def setup_model_and_tokenizer(model_name, use_4bit=True):
-    """
-    Set up model and tokenizer for QLoRA fine-tuning.
-    
-    Args:
-        model_name (str): Name of the base model
-        use_4bit (bool): Whether to use 4-bit quantization
-        
-    Returns:
-        tuple: (model, tokenizer, bnb_config)
-    """
-    # Define BitsAndBytes config for quantization
-    if use_4bit:
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_use_double_quant=True,
-        )
-    else:
-        bnb_config = None
-    
-    # Load model with quantization config
+
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=use_4bit,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+
+    token = os.environ.get("HF_TOKEN", None)  # 👈 fetch token from env or default
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         quantization_config=bnb_config,
         device_map="auto",
-        token=token,
+        token=token if token != "----" else None  # 👈 pass token only if it's valid
     )
-    
-    # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
-    tokenizer.pad_token = tokenizer.eos_token
-    
+
     return model, tokenizer, bnb_config
+
 
 
 def apply_lora_adapters(model, r=8, lora_alpha=16, dropout=0.05):
