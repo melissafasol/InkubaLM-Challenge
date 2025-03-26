@@ -1,3 +1,4 @@
+import random
 import warnings
 warnings.filterwarnings("ignore")
 import torch
@@ -389,26 +390,48 @@ def display_formatted_examples(df, num_examples=2):
             print(formatted)
             print("-" * 40)
             
-def balance_target_lengths(df, task_column='task', reference_task='mt', repetition_factor=11):
+
+def balance_target_lengths(
+    df,
+    task_column='task',
+    target_column='targets',
+    reference_task='mt',
+    repetition_factor=None,
+    tokenizer=str.split  # Tokenizer function, defaults to whitespace split
+):
     """
     Balance target sequence lengths by repeating shorter targets.
 
     Args:
         df (DataFrame): DataFrame containing task and targets columns
         task_column (str): Name of the task column
+        target_column (str): Name of the target column
         reference_task (str): Task with longer sequences to use as reference
-        repetition_factor (int): Number of times to repeat shorter sequences
+        repetition_factor (int or None): If set, uses fixed repetition. If None, uses dynamic repetition based on average length of reference task.
+        tokenizer (callable): Tokenizer function to estimate token lengths. Defaults to str.split (whitespace split).
 
     Returns:
         DataFrame: DataFrame with balanced target lengths
     """
     df_balanced = df.copy()
 
+    # Compute average length of reference task targets
+    ref_mask = df_balanced[task_column] == reference_task
+    reference_lengths = df_balanced.loc[ref_mask, target_column].apply(lambda x: len(tokenizer(x)))
+    avg_ref_len = reference_lengths.mean()
+
     for task in df_balanced[task_column].unique():
         if task != reference_task:
             mask = df_balanced[task_column] == task
-            df_balanced.loc[mask, 'targets'] = df_balanced.loc[mask, 'targets'].apply(
-                lambda x: ' '.join([x] * repetition_factor)
-            )
+            if repetition_factor is not None:
+                # Fixed repetition
+                df_balanced.loc[mask, target_column] = df_balanced.loc[mask, target_column].apply(
+                    lambda x: ' '.join([x] * repetition_factor)
+                )
+            else:
+                # Dynamic repetition to match reference avg length
+                df_balanced.loc[mask, target_column] = df_balanced.loc[mask, target_column].apply(
+                    lambda x: (x + ' ') * max(1, round(avg_ref_len / len(tokenizer(x))))
+                )
 
     return df_balanced
