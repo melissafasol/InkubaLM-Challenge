@@ -495,7 +495,7 @@ def setup_trainer_ab_testing(
     logging_first_step=True,          # 👈 log first step no matter what
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
-    evaluation_strategy="epoch" if val_dataset else "no",
+    evaluation_strategy="steps",
     load_best_model_at_end=True if val_dataset else False)
 
    
