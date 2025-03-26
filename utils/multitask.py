@@ -482,20 +482,23 @@ def setup_trainer_ab_testing(
     # Data collator for causal LM masking
     collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer)
 
-    # Training arguments
     train_args = SFTConfig(
-        output_dir=output_dir,
-        max_seq_length=512,
-        num_train_epochs=num_epochs,
-        save_strategy="epoch",
-        logging_steps=10,
-        save_total_limit=2,
-        report_to=[],  # Disable wandb
-        evaluation_strategy="epoch" if val_dataset else "no",
-        per_device_train_batch_size=4,
-        per_device_eval_batch_size=4,
-        load_best_model_at_end=True if val_dataset else False,
-    )
+    output_dir=output_dir,
+    max_seq_length=512,
+    num_train_epochs=3,
+    save_strategy="epoch",
+    logging_dir=f"{output_dir}/logs",  # 👈 ensure logs directory is defined
+    logging_steps=10,                  # 👈 print every 10 steps
+    save_total_limit=2,
+    report_to="none",                  # 👈 prevent WandB if not used
+    disable_tqdm=False,                # 👈 make sure progress bar prints
+    logging_first_step=True,          # 👈 log first step no matter what
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
+    evaluation_strategy="epoch" if val_dataset else "no",
+    load_best_model_at_end=True if val_dataset else False)
+
+   
 
     # Trainer setup
     trainer = SFTTrainer(
