@@ -486,19 +486,21 @@ def setup_trainer_ab_testing(
     output_dir=output_dir,
     max_seq_length=512,
     num_train_epochs=3,
-    save_strategy="epoch",
-    logging_dir=f"{output_dir}/logs",  # 👈 ensure logs directory is defined
-    logging_steps=10,                  # 👈 print every 10 steps
+    save_strategy="steps",                # 👈 match eval strategy!
+    save_steps=10,                        # 👈 how often to save
+    logging_dir=f"{output_dir}/logs",
+    logging_steps=10,
+    eval_steps=10,
     save_total_limit=2,
-    report_to="none",                  # 👈 prevent WandB if not used
-    disable_tqdm=False,                # 👈 make sure progress bar prints
-    logging_first_step=True,          # 👈 log first step no matter what
+    report_to="none",
+    disable_tqdm=False,
+    logging_first_step=True,
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
     evaluation_strategy="steps",
-    load_best_model_at_end=True if val_dataset else False)
+    load_best_model_at_end=True
+)
 
-   
 
     # Trainer setup
     trainer = SFTTrainer(
