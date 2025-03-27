@@ -5,9 +5,6 @@ from transformers import AutoModelForCausalLM
 
 # Function to load the model for text generation
 def load_model(model_name):
-    """
-    Load a causal language model with automatic GPU support.
-    """
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         return_dict=True,
@@ -40,20 +37,6 @@ def main(
     length_penalty=1,
     **kwargs,
 ):
-    """
-    Runs inference on a dataset and logs responses and log-likelihoods to a CSV file.
-
-    Parameters:
-    - model: The model or trainer object.
-    - tokenizer: Tokenizer for the model.
-    - BASE_PROMPT: Prompt format string.
-    - task_instruction: Optional custom instruction.
-    - dataset: The dataset to run inference on.
-    - csv_file_path: Path to output CSV file.
-    - custom_instruct: Whether to override dataset instructions.
-    - sample_size: Number of samples to evaluate.
-    - max_new_tokens, do_sample, temperature, etc.: Generation settings.
-    """
     actual_model = getattr(model, "model", model)
     actual_model.eval()
 
@@ -63,7 +46,7 @@ def main(
             "ID",
             "Instruction",
             "Input Text",
-            "Response",
+            "Response",  # NOW: Predicted label (0/1/2)
             "Log-Likelihood",
             "Targets",
             "Task",
@@ -102,7 +85,6 @@ def main(
 
             output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)[len(user_prompt):]
 
-            # Compute log-likelihoods for classification tasks
             if task != "mmt":
                 with torch.no_grad():
                     logits = actual_model(**batch).logits
@@ -116,15 +98,18 @@ def main(
                     )
 
                     log_likelihoods_per_class = log_probs.gather(2, t_labels).mean(dim=1)
+                    predicted_label = torch.argmax(log_likelihoods_per_class, dim=-1).item()
+                log_likelihoods_output = log_likelihoods_per_class.tolist()
             else:
-                log_likelihoods_per_class = []
+                predicted_label = output_text  # for MT task
+                log_likelihoods_output = []
 
             writer.writerow([
                 identity,
                 instruction,
                 input_text,
-                output_text,
-                log_likelihoods_per_class.tolist() if isinstance(log_likelihoods_per_class, torch.Tensor) else [],
+                predicted_label,  # NOW numeric value (0/1/2)
+                log_likelihoods_output,
                 labels,
                 task,
                 langs,
