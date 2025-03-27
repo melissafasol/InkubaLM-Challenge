@@ -298,7 +298,11 @@ def generate_response(model, tokenizer, prompt, max_new_tokens=20):
             max_new_tokens=max_new_tokens,
             eos_token_id=tokenizer.eos_token_id,
             pad_token_id=tokenizer.eos_token_id,
-            do_sample=False
+            do_sample=True,
+            top_k=50,
+            top_p=0.9,
+            temperature=0.8,
+            repetition_penalty=1.2
         )
 
     generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
