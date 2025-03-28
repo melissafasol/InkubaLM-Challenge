@@ -74,20 +74,20 @@ def create_submission(output_path: str, test_flag: bool) -> pd.DataFrame:
     print(f"✅ Submission saved to: {full_path}")
     return submission
 
-
 def run_inference_on_tasks(
     output_path: str,
     lora_model,
     tokenizer,
     new_model_function,
     sample_size: int = 50,
-    instruction_map: dict = None
+    instruction_map: dict = None,
+    base_prompt_template: str = None
 ):
-    BASE_PROMPT = (
-        "Below is an instruction that describes a task, paired with an input that provides further context. "
-        "Write a response that appropriately completes the request.\n\n"
-        "### Instruction: {}\n\n"
-        "### Response:"
+    BASE_PROMPT = base_prompt_template or (
+    "You are an expert assistant trained to perform high-quality NLP tasks with precision.\n"
+    "Read the instruction carefully and produce the most accurate and concise response.\n\n"
+    "### Task:\n{}\n\n"
+    "### Answer:"
     )
 
     default_instruction_map = {
