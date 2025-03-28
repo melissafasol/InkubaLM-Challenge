@@ -55,6 +55,8 @@ def create_submission(output_path: str, test_flag: bool) -> pd.DataFrame:
         if "Log-Likelihood" in df.columns:
             df["Response"] = df["Log-Likelihood"]
             df["Response"] = df["Response"].apply(process_likelihood).apply(np.argmax)
+            print(df[["logits", "Response", "Targets"]].head(10))
+        
         else:
         # Otherwise, assume it's text output and map it
             label_map = {
