@@ -6,70 +6,67 @@ from torch.nn import CrossEntropyLoss
 from trl.trainer import DataCollatorForCompletionOnlyLM
 
 
-class WeightedSFTTrainer(SFTTrainer):
-    def __init__(self, class_weights=None, *args, **kwargs):
+class MultiTaskWeightedSFTTrainer(SFTTrainer):
+    def __init__(self, task_class_weights=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.class_weights = class_weights
+        # Normalize weights to sum to 1
+        self.task_class_weights = {
+            task: weights / weights.sum() for task, weights in (task_class_weights or {}).items()
+        }
 
     def compute_loss(self, model, inputs, return_outputs=False):
-        # Forward pass
+        task_names = inputs.get("task", None)
+
         outputs = model(**inputs)
         logits = outputs.logits
         labels = inputs["labels"]
 
-        # Create loss function with class weights (if given)
-        loss_fct = CrossEntropyLoss(weight=self.class_weights) if self.class_weights is not None else CrossEntropyLoss()
-        loss = loss_fct(logits.view(-1, logits.size(-1)), labels.view(-1))
+        # Determine task (assumes all samples in batch are from the same task)
+        task = task_names[0] if isinstance(task_names, (list, torch.Tensor)) else task_names
+        task = task if isinstance(task, str) else task.item() if task is not None else None
 
+        # Use task-specific weights
+        weights = self.task_class_weights.get(task, None)
+        loss_fct = CrossEntropyLoss(weight=weights.to(model.device) if weights is not None else None)
+
+        loss = loss_fct(logits.view(-1, logits.size(-1)), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
 
-
-def get_class_weights(dataset, class_names=("Chanya", "Wastani", "Hasi")):
+def get_class_weights(dataset, class_names):
     label_counts = Counter(dataset["targets"])
-    weights = [1.0 / label_counts[label] for label in class_names]
-    weights = torch.tensor(weights)
-    return weights / weights.sum()  # normalize
+    weights = [1.0 / label_counts.get(label, 1) for label in class_names]
+    return torch.tensor(weights)
+
 
 def formatting_prompts_func(example):
-    """
-    Format examples for instruction tuning.
-    
-    Args:
-        example (dict): Example containing instruction, inputs, and targets
-        
-    Returns:
-        str: Formatted prompt
-    """
     if example['targets'] is not None:
         return f"### Instruction: {example['instruction']}\n### Input: {example['inputs']}\n### Response: {example['targets']}"
     return f"### Instruction: {example['instruction']}\n### Input: {example['inputs']}\n### Response:"
 
 
-
-def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3, lang="swahili"):
+def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3):
     """
-    Set up WeightedSFTTrainer for fine-tuning with class weighting.
+    Set up MultiTaskWeightedSFTTrainer for multitask fine-tuning.
     """
-    
-    # Tokenize the response marker
     response_template_with_context = "\n### Response:"
     response_template_ids = tokenizer.encode(response_template_with_context, add_special_tokens=False)[2:]
-
-    # Set up collator
     collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer)
 
-    # Define class names per language
-    if lang == "swahili":
-        class_names = ["Chanya", "Wastani", "Hasi"]
-    elif lang == "hausa":
-        class_names = ["Kyakkyawa", "Tsaka-tsaki", "Korau"]
-    else:
-        raise ValueError(f"Unsupported language: {lang}")
+    # Define class label names per task (adjust as needed)
+    task_label_map = {
+        "sentiment_swahili": ["Chanya", "Wastani", "Hasi"],
+        "sentiment_hausa": ["Kyakkyawa", "Tsaka-tsaki", "Korau"],
+        "xnli": ["0", "1", "2"],  # use strings if targets are strings
+    }
 
-    # Compute weights
-    weights = get_class_weights(dataset, class_names=class_names)
-    weights = weights.to(model.device)
+    # Compute task-specific class weights
+    task_class_weights = {}
+    for task_key, labels in task_label_map.items():
+        # Filter dataset by task
+        task_data = dataset.filter(lambda x: x["task"] == task_key)
+        if len(task_data) > 0:
+            task_class_weights[task_key] = get_class_weights(task_data, class_names=labels)
 
     # Training config
     train_args = SFTConfig(
@@ -82,14 +79,13 @@ def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3, lang="swa
         report_to=[],
     )
 
-    # Use Weighted Trainer
-    trainer = WeightedSFTTrainer(
+    trainer = MultiTaskWeightedSFTTrainer(
         model=model,
         train_dataset=dataset,
         args=train_args,
         formatting_func=formatting_prompts_func,
         data_collator=collator,
-        class_weights=weights,
+        task_class_weights=task_class_weights,
     )
 
     return trainer
