@@ -10,6 +10,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, PeftModel
 from datasets import load_dataset, concatenate_datasets, Dataset, Value
 from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
+from torch.nn import CrossEntropyLoss
 
 
 def load_dataset_by_tag(dataset_type, tag, split='train'):
@@ -176,8 +177,6 @@ def formatting_prompts_func(example):
     return f"### Instruction: {example['instruction']}\n### Input: {example['inputs']}\n### Response:"
 
 
-import os
-
 def setup_model_and_tokenizer(model_name, use_4bit=True):
 
     bnb_config = BitsAndBytesConfig(
@@ -200,7 +199,6 @@ def setup_model_and_tokenizer(model_name, use_4bit=True):
     )
 
     return model, tokenizer, bnb_config
-
 
 
 def apply_lora_adapters(model, r=8, lora_alpha=16, dropout=0.05):
@@ -232,29 +230,35 @@ def apply_lora_adapters(model, r=8, lora_alpha=16, dropout=0.05):
     
     return model
 
+def get_class_weights(dataset, class_names=("Chanya", "Wastani", "Hasi")):
+    from collections import Counter
 
-def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3):
-    """
-    Set up SFTTrainer for fine-tuning.
-    
-    Args:
-        model: Model with LoRA adapters
-        dataset: Training dataset
-        tokenizer: Tokenizer
-        output_dir (str): Output directory for checkpoints
-        num_epochs (int): Number of training epochs
-        
-    Returns:
-        SFTTrainer: Trainer object
-    """
-    # Define response template for proper label masking
+    label_counts = Counter(dataset["targets"])
+    total = sum(label_counts[label] for label in class_names)
+
+    weights = [1.0 / label_counts[label] for label in class_names]
+    weights = torch.tensor(weights)
+    return weights / weights.sum()  # normalize
+
+
+def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3, lang="swahili"):
+    # Define response template
     response_template_with_context = "\n### Response:"
     response_template_ids = tokenizer.encode(response_template_with_context, add_special_tokens=False)[2:]
     
-    # Data collator for masked LM training
     collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer)
-    
-    # Training arguments
+
+    # Compute class weights
+    if lang == "swahili":
+        class_names = ["Chanya", "Wastani", "Hasi"]
+    elif lang == "hausa":
+        class_names = ["Kyakkyawa", "Tsaka-tsaki", "Korau"]
+    else:
+        raise ValueError(f"Unknown language: {lang}")
+
+    weights = get_class_weights(dataset, class_names=class_names)
+    weights = weights.to(model.device)
+
     train_args = SFTConfig(
         output_dir=output_dir,
         max_seq_length=512,
@@ -262,19 +266,20 @@ def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3):
         save_strategy="epoch",
         logging_steps=10,
         save_total_limit=2,
-        report_to=[],  # Disable wandb
+        report_to=[],
     )
-    
-    # Trainer setup
-    trainer = SFTTrainer(
+
+    trainer = WeightedSFTTrainer(
         model=model,
         train_dataset=dataset,
         args=train_args,
         formatting_func=formatting_prompts_func,
         data_collator=collator,
+        class_weights=weights,
     )
-    
+
     return trainer
+
 
 
 def generate_response(model, tokenizer, prompt, max_new_tokens=20):
@@ -517,3 +522,20 @@ def setup_trainer_ab_testing(
     )
 
     return trainer
+
+class WeightedSFTTrainer(SFTTrainer):
+    def __init__(self, class_weights=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.class_weights = class_weights
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+        # Forward pass
+        outputs = model(**inputs)
+        logits = outputs.logits
+        labels = inputs["labels"]
+
+        # Create loss function with class weights (if given)
+        loss_fct = CrossEntropyLoss(weight=self.class_weights) if self.class_weights is not None else CrossEntropyLoss()
+        loss = loss_fct(logits.view(-1, logits.size(-1)), labels.view(-1))
+
+        return (loss, outputs) if return_outputs else loss
