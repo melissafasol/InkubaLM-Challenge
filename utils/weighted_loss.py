@@ -14,23 +14,22 @@ class MultiTaskWeightedSFTTrainer(SFTTrainer):
             task: weights / weights.sum() for task, weights in (task_class_weights or {}).items()
         }
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         task_names = inputs.get("task", None)
 
         outputs = model(**inputs)
         logits = outputs.logits
         labels = inputs["labels"]
 
-        # Determine task (assumes all samples in batch are from the same task)
         task = task_names[0] if isinstance(task_names, (list, torch.Tensor)) else task_names
         task = task if isinstance(task, str) else task.item() if task is not None else None
 
-        # Use task-specific weights
         weights = self.task_class_weights.get(task, None)
         loss_fct = CrossEntropyLoss(weight=weights.to(model.device) if weights is not None else None)
 
         loss = loss_fct(logits.view(-1, logits.size(-1)), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
+
 
 
 def get_class_weights(dataset, class_names):
