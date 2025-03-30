@@ -1,3 +1,4 @@
+import os 
 import random
 import warnings
 warnings.filterwarnings("ignore")
@@ -523,19 +524,3 @@ def setup_trainer_ab_testing(
 
     return trainer
 
-class WeightedSFTTrainer(SFTTrainer):
-    def __init__(self, class_weights=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.class_weights = class_weights
-
-    def compute_loss(self, model, inputs, return_outputs=False):
-        # Forward pass
-        outputs = model(**inputs)
-        logits = outputs.logits
-        labels = inputs["labels"]
-
-        # Create loss function with class weights (if given)
-        loss_fct = CrossEntropyLoss(weight=self.class_weights) if self.class_weights is not None else CrossEntropyLoss()
-        loss = loss_fct(logits.view(-1, logits.size(-1)), labels.view(-1))
-
-        return (loss, outputs) if return_outputs else loss
