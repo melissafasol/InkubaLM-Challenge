@@ -13,6 +13,7 @@ from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 from torch.nn import CrossEntropyLoss
 
 
+
 def setup_model_and_tokenizer(model_name, use_4bit=True):
 
     bnb_config = BitsAndBytesConfig(
@@ -65,6 +66,22 @@ def apply_lora_adapters(model, r=8, lora_alpha=16, dropout=0.05):
     model.print_trainable_parameters()
     
     return model
+
+def formatting_prompts_func(example):
+    """
+    Format examples for instruction tuning.
+    
+    Args:
+        example (dict): Example containing instruction, inputs, and targets
+        
+    Returns:
+        str: Formatted prompt
+    """
+    if example['targets'] is not None:
+        return f"### Instruction: {example['instruction']}\n### Input: {example['inputs']}\n### Response: {example['targets']}"
+    return f"### Instruction: {example['instruction']}\n### Input: {example['inputs']}\n### Response:"
+
+
 
 def setup_trainer_ab_testing(
     model, 
