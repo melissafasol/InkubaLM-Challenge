@@ -59,7 +59,9 @@ def main(
     CSV file with task descriptions and inference logliklihood outputs
 
     """
-    (getattr(model, "model", model)).eval()
+    actual_model = getattr(model, "model", model)
+    actual_model.eval()
+
     with open(csv_file_path, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(
