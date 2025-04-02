@@ -4,6 +4,7 @@ import re
 import string
 from datasets import load_dataset
 from sklearn.utils import shuffle
+import random 
 
 # -----------------------------------------------
 # TEXT CLEANING UTILS
