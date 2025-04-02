@@ -23,59 +23,13 @@ def is_not_religious(text):
     return not any(kw in text for kw in filter_keywords)
 
 # -----------------------------------------------
-# SYNTHETIC BOOTSTRAP DATA
+# UNIVERSAL PREPROCESSING FUNCTION
 # -----------------------------------------------
-def create_bootstrap_mt_examples(language: str, level: str = "simple") -> pd.DataFrame:
-    examples = {
-        "hausa": {
-            "simple": [
-                ["Hello, how are you?", "Sannu, ya kake?"],
-                ["Thank you very much!", "Na gode sosai!"],
-                ["What is your name?", "Menene sunanka?"]
-            ],
-            "medium": [
-                ["The weather today is quite pleasant.", "Yanayin yau yana da daɗi sosai."],
-                ["I am learning how to speak Hausa fluently.", "Ina koyon yadda ake magana da Hausa sosai."],
-                ["Can you help me find the nearest bus stop?", "Za ka iya taimaka mini in sami tasha mafi kusa?"]
-            ],
-            "rich": [
-                ["Despite the challenges, we managed to finish the project on time.",
-                 "Duk da ƙalubale, mun gama aikin a kan lokaci."],
-                ["Language learning is a journey that requires patience and consistency.",
-                 "Koyon harshe tafiya ce da ke bukatar haƙuri da jajircewa."],
-                ["The conference focused on ways to improve education in rural communities.",
-                 "Taron ya mayar da hankali kan hanyoyin inganta ilimi a yankunan karkara."]
-            ]
-        }
-    }
-    
-    level_data = examples[language.lower()][level]
-    return pd.DataFrame({
-        "ID": [f"bootstrap_{language}_{level}_{i}" for i in range(len(level_data))],
-        "task": ["mmt"] * len(level_data),
-        "langs": ["eng-" + language[:3]] * len(level_data),
-        "data_source": ["synthetic"] * len(level_data),
-        "instruction": [f"translate the following from English into {language.lower()}." for _ in level_data],
-        "inputs": [pair[0].lower() for pair in level_data],
-        "targets": [pair[1].lower() for pair in level_data]
-    })
+def preprocess_dataframe(df):
+    df = df.copy()
 
-# -----------------------------------------------
-# OPUS100 CLEANING + FORMATTING
-# -----------------------------------------------
-def load_and_clean_opus(language="hausa", limit=1000):
-    print("📥 Loading OPUS dataset...")
-    ds = load_dataset("opus100", "en-ha")  # will auto-download if not cached
-    subset = ds["train"].select(range(limit))
-    
-    df = pd.DataFrame({
-        "inputs": [ex["translation"]["en"] for ex in subset],
-        "targets": [ex["translation"]["ha"] for ex in subset]
-    })
-
-    # Normalize and clean
-    df["inputs"] = df["inputs"].apply(normalize)
-    df["targets"] = df["targets"].apply(normalize)
+    df["inputs"] = df["inputs"].astype(str).apply(normalize)
+    df["targets"] = df["targets"].astype(str).apply(normalize)
 
     df = df[
         df["inputs"].notna() & df["targets"].notna() &
@@ -98,29 +52,90 @@ def load_and_clean_opus(language="hausa", limit=1000):
         (df["targets"].str.split().str.len() < 128)
     ]
 
-    return pd.DataFrame({
-        "ID": [f"opus_{language}_{i}" for i in range(len(df))],
-        "task": ["mmt"] * len(df),
-        "langs": ["eng-" + language[:3]] * len(df),
-        "data_source": ["opus100"] * len(df),
-        "instruction": [f"translate the following from English into {language.lower()}." for _ in range(len(df))],
-        "inputs": df["inputs"].tolist(),
-        "targets": df["targets"].tolist()
+    return df.reset_index(drop=True)
+
+# -----------------------------------------------
+# SYNTHETIC BOOTSTRAP DATA
+# -----------------------------------------------
+def create_bootstrap_mt_examples(language: str) -> pd.DataFrame:
+    examples = {
+        "hausa": {
+            "simple": [
+                ["Hello, how are you?", "Sannu, ya kake?"],
+                ["Thank you very much!", "Na gode sosai!"],
+                ["What is your name?", "Menene sunanka?"]
+            ],
+            "medium": [
+                ["The weather today is quite pleasant.", "Yanayin yau yana da daɗi sosai."],
+                ["I am learning how to speak Hausa fluently.", "Ina koyon yadda ake magana da Hausa sosai."],
+                ["Can you help me find the nearest bus stop?", "Za ka iya taimaka mini in sami tasha mafi kusa?"]
+            ],
+            "rich": [
+                ["Despite the challenges, we managed to finish the project on time.",
+                 "Duk da ƙalubale, mun gama aikin a kan lokaci."],
+                ["Language learning is a journey that requires patience and consistency.",
+                 "Koyon harshe tafiya ce da ke bukatar haƙuri da jajircewa."],
+                ["The conference focused on ways to improve education in rural communities.",
+                 "Taron ya mayar da hankali kan hanyoyin inganta ilimi a yankunan karkara."]
+            ]
+        }
+    }
+
+    rows = []
+    for level, pairs in examples[language.lower()].items():
+        for i, (src, tgt) in enumerate(pairs):
+            rows.append({
+                "ID": f"bootstrap_{language}_{level}_{i}",
+                "task": "mmt",
+                "langs": f"eng-{language[:3]}",
+                "data_source": "synthetic",
+                "instruction": f"translate the following from English into {language.lower()}.",
+                "inputs": src.lower(),
+                "targets": tgt.lower()
+            })
+
+    return pd.DataFrame(rows)
+
+# -----------------------------------------------
+# OPUS100 LOADING + CLEANING
+# -----------------------------------------------
+def load_and_clean_opus(language="hausa", limit=1000):
+    print("📥 Loading OPUS dataset...")
+    ds = load_dataset("opus100", "en-ha")
+    subset = ds["train"].select(range(limit))
+
+    df = pd.DataFrame({
+        "inputs": [ex["translation"]["en"] for ex in subset],
+        "targets": [ex["translation"]["ha"] for ex in subset]
     })
+
+    df_cleaned = preprocess_dataframe(df)
+
+    df_cleaned["ID"] = [f"opus_{language}_{i}" for i in range(len(df_cleaned))]
+    df_cleaned["task"] = "mmt"
+    df_cleaned["langs"] = f"eng-{language[:3]}"
+    df_cleaned["data_source"] = "opus100"
+    df_cleaned["instruction"] = f"translate the following from English into {language.lower()}."
+
+    return df_cleaned
 
 # -----------------------------------------------
 # MAIN PIPELINE FUNCTION
 # -----------------------------------------------
-def build_hausa_mt_dataset():
+def build_hausa_mt_dataset(custom_df=None):
     df_opus = load_and_clean_opus()
 
-    bootstrap_df = pd.concat([
-        create_bootstrap_mt_examples("hausa", "simple"),
-        create_bootstrap_mt_examples("hausa", "medium"),
-        create_bootstrap_mt_examples("hausa", "rich")
-    ], ignore_index=True)
+    df_bootstrap = create_bootstrap_mt_examples("hausa")
 
-    final_df = pd.concat([df_opus, bootstrap_df], ignore_index=True)
-    final_df = shuffle(final_df, random_state=42).reset_index(drop=True)
+    if custom_df is not None:
+        df_custom_clean = preprocess_dataframe(custom_df)
+        df_custom_clean["ID"] = [f"custom_hausa_{i}" for i in range(len(df_custom_clean))]
+        df_custom_clean["task"] = "mmt"
+        df_custom_clean["langs"] = "eng-hau"
+        df_custom_clean["data_source"] = "custom"
+        df_custom_clean["instruction"] = "translate the following from English into hausa."
+        all_data = pd.concat([df_opus, df_bootstrap, df_custom_clean], ignore_index=True)
+    else:
+        all_data = pd.concat([df_opus, df_bootstrap], ignore_index=True)
 
-    return final_df
+    return shuffle(all_data, random_state=42).reset_index(drop=True)
