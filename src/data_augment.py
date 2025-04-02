@@ -36,7 +36,7 @@ def is_not_repetitive(text, max_repeat=5):
 # -----------------------------------------------
 # MAIN PREPROCESS FUNCTION
 # -----------------------------------------------
-def preprocess_dataframe(df):
+def preprocess_dataframe(df, target_language = 'swahili'):
     df = df.copy()
 
     df["inputs"] = df["inputs"].astype(str).apply(normalize)
@@ -66,6 +66,6 @@ def preprocess_dataframe(df):
     ]
 
     # ✅ Standardize instruction text
-    df["instruction"] = "translate the following from english into hausa."
+    df["instruction"] = f"translate the following from english into {target_language}."
 
     return df.reset_index(drop=True)
