@@ -65,30 +65,7 @@ def preprocess_dataframe(df):
         (df["targets"].str.split().str.len() < 128)
     ]
 
+    # ✅ Standardize instruction text
+    df["instruction"] = "translate the following from english into hausa."
+
     return df.reset_index(drop=True)
-
-
-
-# -----------------------------------------------
-# OPUS100 LOADING + CLEANING
-# -----------------------------------------------
-def load_and_clean_opus(language="hausa", limit=1000):
-    print("📥 Loading OPUS dataset...")
-    ds = load_dataset("opus100", "en-ha")
-    subset = ds["train"].select(range(limit))
-
-    df = pd.DataFrame({
-        "inputs": [ex["translation"]["en"] for ex in subset],
-        "targets": [ex["translation"]["ha"] for ex in subset]
-    })
-
-    df_cleaned = preprocess_dataframe(df)
-
-    df_cleaned["ID"] = [f"opus_{language}_{i}" for i in range(len(df_cleaned))]
-    df_cleaned["task"] = "mmt"
-    df_cleaned["langs"] = f"eng-{language[:3]}"
-    df_cleaned["data_source"] = "opus100"
-    df_cleaned["instruction"] = f"translate the following from English into {language.lower()}."
-
-    return df_cleaned
-
