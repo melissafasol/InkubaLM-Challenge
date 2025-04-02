@@ -34,7 +34,7 @@ def chrF(reference, hypothesis, max_n=6, beta=2):
     return f_score(avg_p, avg_r, beta)
 
 
-def evaluate_mt_hausa_only(csv_file_path):
+def evaluate_mt_only(csv_file_path, lang_pair = 'eng-swa'):
     chrfs_scores = []
 
     with open(csv_file_path, newline="", encoding="utf-8") as csvfile:
@@ -42,7 +42,7 @@ def evaluate_mt_hausa_only(csv_file_path):
 
         for row in reader:
             # Only evaluate Hausa MT entries
-            if "mt" in row["ID"] and "eng-hau" in row["Langs"]:
+            if "mt" in row["ID"] and lang_pair in row["Langs"]:
                 ref = row["Targets"]
                 pred = row["Response"]
                 score = chrF(ref, pred)
