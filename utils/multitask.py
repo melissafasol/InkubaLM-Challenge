@@ -243,24 +243,28 @@ def get_class_weights(dataset, class_names=None):
     return weights / weights.sum()
 
 
-def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3, lang="swahili"):
-    # Define response template
+def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3):
+    """
+    Set up SFTTrainer for fine-tuning.
+    
+    Args:
+        model: Model with LoRA adapters
+        dataset: Training dataset
+        tokenizer: Tokenizer
+        output_dir (str): Output directory for checkpoints
+        num_epochs (int): Number of training epochs
+        
+    Returns:
+        SFTTrainer: Trainer object
+    """
+    # Define response template for proper label masking
     response_template_with_context = "\n### Response:"
     response_template_ids = tokenizer.encode(response_template_with_context, add_special_tokens=False)[2:]
     
+    # Data collator for masked LM training
     collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer)
-
-    # Compute class weights
-    if lang == "swahili":
-        class_names = ["Chanya", "Wastani", "Hasi"]
-    elif lang == "hausa":
-        class_names = ["Kyakkyawa", "Tsaka-tsaki", "Korau"]
-    else:
-        raise ValueError(f"Unknown language: {lang}")
-
-    weights = get_class_weights(dataset, class_names=class_names)
-    weights = weights.to(model.device)
-
+    
+    # Training arguments
     train_args = SFTConfig(
         output_dir=output_dir,
         max_seq_length=512,
@@ -268,18 +272,18 @@ def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3, lang="swa
         save_strategy="epoch",
         logging_steps=10,
         save_total_limit=2,
-        report_to=[],
+        report_to=[],  # Disable wandb
     )
-
-    trainer = WeightedSFTTrainer(
+    
+    # Trainer setup
+    trainer = SFTTrainer(
         model=model,
         train_dataset=dataset,
         args=train_args,
         formatting_func=formatting_prompts_func,
         data_collator=collator,
-        class_weights=weights,
     )
-
+    
     return trainer
 
 
