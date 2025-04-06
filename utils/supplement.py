@@ -426,12 +426,11 @@ def preprocess_mt_dataframe(df):
 def preprocess_nli_dataframe(df):
     df = df.copy()
 
-    # Normalize fields
-    df['premise'] = df['premise'].str.strip().str.lower()
-    df['inputs'] = df['inputs'].str.strip().str.lower()
-    df['instruction'] = df['instruction'].str.strip()
+    # Clean + normalize text
+    df['inputs'] = df['inputs'].astype(str).str.strip().str.lower()
+    df['instruction'] = df['instruction'].astype(str).str.strip()
 
-    # Assign numeric classification-focused instruction
+    # Assign numeric, task-specific instruction
     def assign_classification_instruction(row):
         if row["langs"] == "swa":
             return "Chagua jibu sahihi: 0 (Chanya), 1 (Wastani), 2 (Hasi)."
@@ -442,11 +441,7 @@ def preprocess_nli_dataframe(df):
 
     df["instruction"] = df.apply(assign_classification_instruction, axis=1)
 
-    # Create prompt
-    df['text_input'] = (
-        df['instruction'] + "\n" +
-        "premise: " + df['premise'] + "\n" +
-        "hypothesis: " + df['inputs']
-    )
+    # Build simple prompt
+    df['text_input'] = df['instruction'] + "\n" + df['inputs']
 
-    return df[['ID', 'langs', 'instruction', 'premise', 'inputs', 'text_input', 'targets']]
+    return df[['ID', 'langs', 'instruction', 'inputs', 'text_input', 'targets']]
