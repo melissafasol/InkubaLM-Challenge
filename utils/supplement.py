@@ -122,7 +122,7 @@ def generate_afrixnli_swahili(n_entail=100, n_neutral=100, n_contra=100, source=
     instruction = "Is the following question True, False or Neither?"
 
     premise_pairs = {
-        0: [  # Entailment (True)
+        '0': [  # Entailment (True)
               "Alikula chakula chake cha mchana.",
         "Alifanya mazoezi kila siku.",
         "Alikuwa na njaa kabla ya kula.",
@@ -148,7 +148,7 @@ def generate_afrixnli_swahili(n_entail=100, n_neutral=100, n_contra=100, source=
         "Aliandika barua ya kuomba kazi.",
         "Walifurahia sinema waliyoitazama.",
         "Alihudumu katika jeshi kwa miaka kumi."],
-        1: [  # Neutral (Neither)
+        '1': [  # Neutral (Neither)
             "Ana gari kubwa aina ya Toyota.",
         "Alivaa fulana nyekundu jana.",
         "Saa yake mpya ni ya bei ghali.",
@@ -175,7 +175,7 @@ def generate_afrixnli_swahili(n_entail=100, n_neutral=100, n_contra=100, source=
         "Alikuwa akisubiri matokeo ya kura.",
         "Anafikiria kuhamia mjini mwaka huu."
             ],
-        2: [  # Contradiction (False)
+        '2': [  # Contradiction (False)
             "Hakufika kazini leo.",
     "Alikataa kula chakula alichoandaliwa.",
     "Alisema hajawahi kuona bahari.",
@@ -230,7 +230,7 @@ def generate_afrixnli_hausa(n_entail=100, n_neutral=100, n_contra=100, source="s
     instruction = "Is the following question True, False or Neither?"
 
     premise_pairs = {
-        0: [  # Entailment (True)
+        '0': [  # Entailment (True)
             "Ya ci abincinsa kafin tafiya.",
     "Sun gama aikin kafin rana ta fadi.",
     "Yana zuwa aiki kowace rana.",
@@ -252,7 +252,7 @@ def generate_afrixnli_hausa(n_entail=100, n_neutral=100, n_contra=100, source="s
     "Ta halarci taron gaba daya.",
     "Sun dauki hoto tare da shugaban makaranta."
         ],
-        1: [  # Neutral (Neither)
+        '1': [  # Neutral (Neither)
              "Yana da jakar makaranta mai launin ja.",
     "Ta fi son shinkafa da miya.",
     "Yana jin dadin kallon fina-finai.",
@@ -274,7 +274,7 @@ def generate_afrixnli_hausa(n_entail=100, n_neutral=100, n_contra=100, source="s
     "Ya shirya biki mai kyau.",
     "Yana son tafiye-tafiye na nishaɗi."
         ],
-        2: [  # Contradiction (False)
+        '2': [  # Contradiction (False)
             "Bai je aiki ba yau.",
     "Ya ki cin abinci da daddare.",
     "Ya ce ba zai taba zuwa makaranta ba.",
