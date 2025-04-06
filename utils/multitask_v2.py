@@ -190,7 +190,7 @@ def formatting_prompts_func(example):
     return f"### Instruction: {example['instruction']}\n### Input: {premise}{example['inputs']}\n### Response:"
 
 
-def setup_model_and_tokenizer(model_name, use_4bit=True):
+def setup_model_and_tokenizer(model_name, use_4bit=True, token):
     """
     Set up model and tokenizer for QLoRA fine-tuning.
     
