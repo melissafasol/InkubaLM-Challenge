@@ -324,21 +324,20 @@ def generate_afrixnli_hausa(n_entail=100, n_neutral=100, n_contra=100, source="s
     return df[cols]
 
 
-
-# === Shared ===
+# === Shared Utilities ===
 def clean_text(text):
     text = text.lower()
-    text = re.sub(r'@[\w_]+', '', text)                      # mentions
-    text = re.sub(r'#\w+', '', text)                         # hashtags
-    text = re.sub(r'http\S+|www\S+', '', text)               # links
-    emoji_pattern = re.compile(                              # emojis
+    text = re.sub(r'@[\w_]+', '', text)
+    text = re.sub(r'#\w+', '', text)
+    text = re.sub(r'http\S+|www\S+', '', text)
+    emoji_pattern = re.compile(
         "[" u"\U0001F600-\U0001F64F" u"\U0001F300-\U0001F5FF"
         u"\U0001F680-\U0001F6FF" u"\U0001F1E0-\U0001F1FF"
-        u"\U00002700-\U000027BF" u"\U000024C2-\U0001F251" "]+", 
+        u"\U00002700-\U000027BF" u"\U000024C2-\U0001F251" "]+",
         flags=re.UNICODE
     )
     text = emoji_pattern.sub(r'', text)
-    text = re.sub(r"[^\w\s.,!?'-]", '', text)  # keep basic punctuation
+    text = re.sub(r"[^\w\s.,!?'-]", '', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
@@ -357,31 +356,56 @@ def has_repeated_words(text, threshold=3):
             count = 1
     return False
 
-# === Sentiment ===
+def update_instruction(row):
+    task, lang = row["task"], row["langs"]
+    
+    if task == "sentiment":
+        if lang == "swa":
+            return "Aina ya hisia: Chanya, Hasi, au Wastani."
+        elif lang == "hausa":
+            return "Nuna yanayi: Kyakkyawa, Korau, ko Tsaka-tsaki."
+
+    elif task == "mt":
+        if lang == "swa":
+            return "Tafsiri kwa Kiswahili."
+        elif lang == "hausa":
+            return "Fassara zuwa Hausa."
+
+    elif task == "afrixnli":
+        if lang == "swa":
+            return "Je hoja inathibitisha (0), haina uhusiano (1), au inapingana (2) na kauli?"
+        elif lang == "hau":
+            return "Shin bayanin na goyon baya (0), ba shi da alaƙa (1), ko yana ƙaryata (2) ƙalmar?"
+
+    return row["instruction"]  # fallback if no match
+
+# === Sentiment Preprocessing ===
 def preprocess_sentiment_dataframe(df):
     df = df.copy()
     df['inputs'] = df['inputs'].astype(str).apply(clean_text)
 
-    punctuation_mask = df['inputs'].apply(has_repeated_punctuation)
-    repeated_words_mask = df['inputs'].apply(has_repeated_words)
-    to_remove_mask = punctuation_mask | repeated_words_mask
+    # Filter out problematic rows
+    to_remove = df['inputs'].apply(has_repeated_punctuation) | df['inputs'].apply(has_repeated_words)
+    removed_df = df[to_remove].copy()
+    cleaned_df = df[~to_remove].copy()
 
-    removed_df = df[to_remove_mask].copy()
-    cleaned_df = df[~to_remove_mask].copy()
-
+    # Normalize labels
     label_map = {
         'kyakkyawa': 'positive', 'tsaka-tsaki': 'neutral', 'wastani': 'neutral',
-        'korau': 'negative', 'positive': 'positive',
-        'neutral': 'neutral', 'negative': 'negative'
+        'korau': 'negative', 'positive': 'positive', 'neutral': 'neutral', 'negative': 'negative'
     }
     cleaned_df['targets'] = cleaned_df['targets'].str.lower().map(label_map)
     cleaned_df = cleaned_df.dropna(subset=['targets'])
 
+    # Update instruction field
+    cleaned_df["instruction"] = cleaned_df.apply(update_instruction, axis=1)
+
     return cleaned_df, removed_df
 
-# === Machine Translation ===
+# === Machine Translation Preprocessing ===
 def preprocess_mt_dataframe(df):
     df = df.copy()
+
     df['inputs'] = df['inputs'].str.strip()
     df['targets'] = df['targets'].str.strip()
     df['instruction'] = df['instruction'].str.strip()
@@ -396,27 +420,37 @@ def preprocess_mt_dataframe(df):
     df['inputs'] = df['inputs'].apply(clean_text)
     df['targets'] = df['targets'].apply(clean_text)
 
+    # Update instruction field
+    df["instruction"] = df.apply(update_instruction, axis=1)
+
     df['text_input'] = df['instruction'] + "\n" + df['inputs']
     return df[['ID', 'langs', 'instruction', 'inputs', 'targets', 'text_input']]
 
-# === Natural Language Inference (XNLI) ===
+
 def preprocess_nli_dataframe(df):
     df = df.copy()
+
+    # Normalize fields
     df['premise'] = df['premise'].str.strip().str.lower()
     df['inputs'] = df['inputs'].str.strip().str.lower()
-    df['instruction'] = df['instruction'].str.strip().str.lower()
+    df['instruction'] = df['instruction'].str.strip()
 
+    # Assign numeric classification-focused instruction
+    def assign_classification_instruction(row):
+        if row["langs"] == "swa":
+            return "Chagua jibu sahihi: 0 (Chanya), 1 (Wastani), 2 (Hasi)."
+        elif row["langs"] == "hau":
+            return "Zaɓi: 0 (Kyakkyawa), 1 (Tsaka-tsaki), 2 (Korau)."
+        else:
+            return "Chagua daraja sahihi: 0, 1, au 2."
+
+    df["instruction"] = df.apply(assign_classification_instruction, axis=1)
+
+    # Create prompt
     df['text_input'] = (
         df['instruction'] + "\n" +
         "premise: " + df['premise'] + "\n" +
         "hypothesis: " + df['inputs']
     )
 
-    label_map = {
-        0: "entailment",
-        1: "neutral",
-        2: "contradiction"
-    }
-    df['label_text'] = df['targets'].map(label_map)
-
-    return df[['ID', 'langs', 'instruction', 'premise', 'inputs', 'text_input', 'targets', 'label_text']]
+    return df[['ID', 'langs', 'instruction', 'premise', 'inputs', 'text_input', 'targets']]
