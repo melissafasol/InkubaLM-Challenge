@@ -3,6 +3,8 @@
 import pandas as pd
 import random
 import uuid
+import re
+
 
 def generate_swahili_supplement(n_pos=100, n_neg=100, task="sentiment", lang="swahili", source="synthetic"):
     instruction = (
@@ -320,3 +322,101 @@ def generate_afrixnli_hausa(n_entail=100, n_neutral=100, n_contra=100, source="s
 
     cols = ['ID', 'langs', 'instruction', 'inputs', 'targets', 'task', 'data_source']
     return df[cols]
+
+
+
+# === Shared ===
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'@[\w_]+', '', text)                      # mentions
+    text = re.sub(r'#\w+', '', text)                         # hashtags
+    text = re.sub(r'http\S+|www\S+', '', text)               # links
+    emoji_pattern = re.compile(                              # emojis
+        "[" u"\U0001F600-\U0001F64F" u"\U0001F300-\U0001F5FF"
+        u"\U0001F680-\U0001F6FF" u"\U0001F1E0-\U0001F1FF"
+        u"\U00002700-\U000027BF" u"\U000024C2-\U0001F251" "]+", 
+        flags=re.UNICODE
+    )
+    text = emoji_pattern.sub(r'', text)
+    text = re.sub(r"[^\w\s.,!?'-]", '', text)  # keep basic punctuation
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+def has_repeated_punctuation(text, threshold=3):
+    return bool(re.search(rf'([^\w\s])\1{{{threshold - 1},}}', text))
+
+def has_repeated_words(text, threshold=3):
+    words = text.split()
+    count = 1
+    for i in range(1, len(words)):
+        if words[i] == words[i - 1]:
+            count += 1
+            if count >= threshold:
+                return True
+        else:
+            count = 1
+    return False
+
+# === Sentiment ===
+def preprocess_sentiment_dataframe(df):
+    df = df.copy()
+    df['inputs'] = df['inputs'].astype(str).apply(clean_text)
+
+    punctuation_mask = df['inputs'].apply(has_repeated_punctuation)
+    repeated_words_mask = df['inputs'].apply(has_repeated_words)
+    to_remove_mask = punctuation_mask | repeated_words_mask
+
+    removed_df = df[to_remove_mask].copy()
+    cleaned_df = df[~to_remove_mask].copy()
+
+    label_map = {
+        'kyakkyawa': 'positive', 'tsaka-tsaki': 'neutral', 'wastani': 'neutral',
+        'korau': 'negative', 'positive': 'positive',
+        'neutral': 'neutral', 'negative': 'negative'
+    }
+    cleaned_df['targets'] = cleaned_df['targets'].str.lower().map(label_map)
+    cleaned_df = cleaned_df.dropna(subset=['targets'])
+
+    return cleaned_df, removed_df
+
+# === Machine Translation ===
+def preprocess_mt_dataframe(df):
+    df = df.copy()
+    df['inputs'] = df['inputs'].str.strip()
+    df['targets'] = df['targets'].str.strip()
+    df['instruction'] = df['instruction'].str.strip()
+
+    df['inputs'] = df['inputs'].str.replace(r"&gt;", ">", regex=True)
+    df['targets'] = df['targets'].str.replace(r"&gt;", ">", regex=True)
+
+    df = df.dropna(subset=['inputs', 'targets'])
+    df = df[df['inputs'].str.len() > 3]
+    df = df[df['targets'].str.len() > 3]
+
+    df['inputs'] = df['inputs'].apply(clean_text)
+    df['targets'] = df['targets'].apply(clean_text)
+
+    df['text_input'] = df['instruction'] + "\n" + df['inputs']
+    return df[['ID', 'langs', 'instruction', 'inputs', 'targets', 'text_input']]
+
+# === Natural Language Inference (XNLI) ===
+def preprocess_nli_dataframe(df):
+    df = df.copy()
+    df['premise'] = df['premise'].str.strip().str.lower()
+    df['inputs'] = df['inputs'].str.strip().str.lower()
+    df['instruction'] = df['instruction'].str.strip().str.lower()
+
+    df['text_input'] = (
+        df['instruction'] + "\n" +
+        "premise: " + df['premise'] + "\n" +
+        "hypothesis: " + df['inputs']
+    )
+
+    label_map = {
+        0: "entailment",
+        1: "neutral",
+        2: "contradiction"
+    }
+    df['label_text'] = df['targets'].map(label_map)
+
+    return df[['ID', 'langs', 'instruction', 'premise', 'inputs', 'text_input', 'targets', 'label_text']]
