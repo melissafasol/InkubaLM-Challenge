@@ -46,10 +46,9 @@ def generate_swahili_supplement(n_pos=100, n_neg=100, task="sentiment", lang="sw
     df['ID'] = ["ID_" + uuid.uuid4().hex[:8] + "_sentiment_dev_swahili" for _ in range(len(df))]
     df['task'] = task
     df['langs'] = lang
-    df['data_source'] = source
     df['instruction'] = instruction
 
-    cols = ['ID', 'task', 'langs', 'data_source', 'instruction', 'inputs', 'targets']
+    cols = ['ID', 'task', 'langs', 'instruction', 'inputs', 'targets']
     return df[cols]
 
 
@@ -113,10 +112,9 @@ def generate_hausa_supplement(n_pos=100, n_neg=100, n_neu=100, task="sentiment",
     df['ID'] = ["ID_" + uuid.uuid4().hex[:8] + "_sentiment_dev_hausa" for _ in range(len(df))]
     df['task'] = task
     df['langs'] = lang
-    df['data_source'] = source
     df['instruction'] = instruction
 
-    cols = ['ID', 'task', 'langs', 'data_source', 'instruction', 'inputs', 'targets']
+    cols = ['ID', 'task', 'langs', 'instruction', 'inputs', 'targets']
     return df[cols]
 
 
@@ -222,10 +220,9 @@ def generate_afrixnli_swahili(n_entail=100, n_neutral=100, n_contra=100, source=
     df['ID'] = ["ID_" + uuid.uuid4().hex[:8] + "_dev_afrixnli_swa" for _ in range(len(df))]
     df['task'] = "afrixnli"
     df['langs'] = "swa"
-    df['data_source'] = source
     df['instruction'] = instruction
 
-    cols = ['ID', 'langs', 'instruction', 'inputs', 'targets', 'task', 'data_source']
+    cols = ['ID', 'langs', 'instruction', 'inputs', 'targets', 'task']
     return df[cols]
 
 
@@ -317,10 +314,9 @@ def generate_afrixnli_hausa(n_entail=100, n_neutral=100, n_contra=100, source="s
     df['ID'] = ["ID_" + uuid.uuid4().hex[:8] + "_dev_afrixnli_hau" for _ in range(len(df))]
     df['task'] = "afrixnli"
     df['langs'] = "hau"
-    df['data_source'] = source
     df['instruction'] = instruction
 
-    cols = ['ID', 'langs', 'instruction', 'inputs', 'targets', 'task', 'data_source']
+    cols = ['ID', 'langs', 'instruction', 'inputs', 'targets', 'task']
     return df[cols]
 
 
