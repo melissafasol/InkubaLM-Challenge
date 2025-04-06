@@ -116,3 +116,85 @@ def generate_hausa_supplement(n_pos=100, n_neg=100, n_neu=100, task="sentiment",
 
     cols = ['ID', 'task', 'langs', 'data_source', 'instruction', 'inputs', 'targets']
     return df[cols]
+
+
+def generate_afrixnli_swahili(n_entail=100, n_neutral=100, n_contra=100, source="synthetic"):
+    instruction = "Is the following question True, False or Neither?"
+
+    premise_pairs = {
+        0: [  # Entailment (True)
+            "Alikula chakula chake cha mchana.", "Alikuwa na njaa kabla ya kula.",
+            "Alifanya mazoezi kila siku.", "Yuko na afya nzuri.",
+        ],
+        1: [  # Neutral (Neither)
+            "Ana gari mpya.", "Anapenda kusafiri.",
+            "Alikuwa ofisini leo.", "Anapenda kufanya kazi kwa bidii.",
+        ],
+        2: [  # Contradiction (False)
+            "Alisahau simu yake nyumbani.", "Alituma ujumbe kutoka nyumbani.",
+            "Anaishi Kenya.", "Hajawahi kufika Kenya.",
+        ]
+    }
+
+    def make_samples(label_id, n):
+        return [{
+            "inputs": random.choice(premise_pairs[label_id]),
+            "targets": label_id
+        } for _ in range(n)]
+
+    samples = (
+        make_samples(0, n_entail) +
+        make_samples(1, n_neutral) +
+        make_samples(2, n_contra)
+    )
+
+    df = pd.DataFrame(samples)
+    df['ID'] = ["ID_" + uuid.uuid4().hex[:8] + "_dev_afrixnli_swa" for _ in range(len(df))]
+    df['task'] = "afrixnli"
+    df['langs'] = "swa"
+    df['data_source'] = source
+    df['instruction'] = instruction
+
+    cols = ['ID', 'langs', 'instruction', 'inputs', 'targets', 'task', 'data_source']
+    return df[cols]
+
+
+def generate_afrixnli_hausa(n_entail=100, n_neutral=100, n_contra=100, source="synthetic"):
+    instruction = "Is the following question True, False or Neither?"
+
+    premise_pairs = {
+        0: [  # Entailment (True)
+            "Yana da kyau sosai.", "Ya ci abincinsa kafin tafiya.",
+            "Sun kammala aikin a kan lokaci.", "Ya riga ya bar gida.",
+        ],
+        1: [  # Neutral (Neither)
+            "Yana cikin daki yanzu.", "Zai iya zuwa wurin aiki.",
+            "Suna da mota mai kyau.", "Yana sha ruwa sosai.",
+        ],
+        2: [  # Contradiction (False)
+            "Ba su taba zuwa Kano ba.", "Sun zauna a Kano shekaru biyar.",
+            "Bai ci abinci ba.", "Ya ce ya kenyatta kayan abinci.",
+        ]
+    }
+
+    def make_samples(label_id, n):
+        return [{
+            "inputs": random.choice(premise_pairs[label_id]),
+            "targets": label_id
+        } for _ in range(n)]
+
+    samples = (
+        make_samples(0, n_entail) +
+        make_samples(1, n_neutral) +
+        make_samples(2, n_contra)
+    )
+
+    df = pd.DataFrame(samples)
+    df['ID'] = ["ID_" + uuid.uuid4().hex[:8] + "_dev_afrixnli_hau" for _ in range(len(df))]
+    df['task'] = "afrixnli"
+    df['langs'] = "hau"
+    df['data_source'] = source
+    df['instruction'] = instruction
+
+    cols = ['ID', 'langs', 'instruction', 'inputs', 'targets', 'task', 'data_source']
+    return df[cols]
