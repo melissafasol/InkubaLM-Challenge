@@ -62,10 +62,7 @@ def load_and_combine_datasets(tag, split='train'):
         mt_dataset = mt_dataset.cast_column("targets", Value("string"))
         xn_dataset = xn_dataset.cast_column("targets", Value("string"))
 
-    # Concatenate datasets
-    combined_dataset = concatenate_datasets([se_dataset, mt_dataset, xn_dataset])
-
-    return combined_dataset
+    return se_dataset, mt_dataset, xn_dataset
 
 
 def extract_task_from_id(id_string):
