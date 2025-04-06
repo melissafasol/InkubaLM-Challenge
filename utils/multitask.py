@@ -231,15 +231,16 @@ def apply_lora_adapters(model, r=8, lora_alpha=16, dropout=0.05):
     
     return model
 
-def get_class_weights(dataset, class_names=("Chanya", "Wastani", "Hasi")):
+def get_class_weights(dataset, class_names=None):
     from collections import Counter
 
     label_counts = Counter(dataset["targets"])
-    total = sum(label_counts[label] for label in class_names)
+    if class_names is None:
+        class_names = list(label_counts.keys())
 
-    weights = [1.0 / label_counts[label] for label in class_names]
+    weights = [1.0 / label_counts[label] if label_counts[label] > 0 else 0.0 for label in class_names]
     weights = torch.tensor(weights)
-    return weights / weights.sum()  # normalize
+    return weights / weights.sum()
 
 
 def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3, lang="swahili"):
