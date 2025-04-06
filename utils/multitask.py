@@ -123,6 +123,28 @@ def balance_target_lengths(df, task_column='task', reference_task='mt', repetiti
     
     return df_balanced
 
+def balance_by_row_duplication(df, task_column='task', reference_task='mt'):
+    """
+    Balance dataset by duplicating underrepresented task rows instead of repeating the target string.
+    """
+    df_balanced = df.copy()
+    
+    # Calculate average number of samples per task
+    task_counts = df[task_column].value_counts()
+    max_count = task_counts[reference_task]
+
+    # Duplicate rows to match max task count
+    balanced_parts = []
+    for task, count in task_counts.items():
+        task_df = df[df[task_column] == task]
+        repeat_factor = int(np.ceil(max_count / count))
+        balanced_task_df = pd.concat([task_df] * repeat_factor, ignore_index=True).sample(n=max_count, random_state=42)
+        balanced_parts.append(balanced_task_df)
+
+    df_balanced = pd.concat(balanced_parts, ignore_index=True)
+    return df_balanced
+
+
 
 def plot_target_lengths(df_before, df_after, task_column='task'):
     """
