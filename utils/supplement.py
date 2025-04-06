@@ -43,7 +43,7 @@ def generate_swahili_supplement(n_pos=100, n_neg=100, task="sentiment", lang="sw
               [{"inputs": text, "targets": "Hasi"} for text in neg_samples]
 
     df = pd.DataFrame(samples)
-    df['ID'] = ["ID_" + uuid.uuid4().hex[:8] + "_sentiment_dev_swahili" for _ in range(len(df))]
+    df['ID'] = [f"ID_{uuid.uuid4().hex[:8]}_sentiment_{lang}" for _ in range(len(df))]
     df['task'] = task
     df['langs'] = lang
     df['instruction'] = instruction
@@ -109,7 +109,7 @@ def generate_hausa_supplement(n_pos=100, n_neg=100, n_neu=100, task="sentiment",
     )
 
     df = pd.DataFrame(data)
-    df['ID'] = ["ID_" + uuid.uuid4().hex[:8] + "_sentiment_dev_hausa" for _ in range(len(df))]
+    df['ID'] = [f"ID_{uuid.uuid4().hex[:8]}_sentiment_{lang}" for _ in range(len(df))]
     df['task'] = task
     df['langs'] = lang
     df['instruction'] = instruction
