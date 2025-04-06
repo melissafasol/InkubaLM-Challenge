@@ -362,9 +362,9 @@ def update_instruction(row):
             return "Nuna yanayi: Kyakkyawa, Korau, ko Tsaka-tsaki."
 
     elif task == "mt":
-        if lang == "swa":
+        if lang == "eng-swa":
             return "Tafsiri kwa Kiswahili."
-        elif lang == "hausa":
+        elif lang == "eng-hau":
             return "Fassara zuwa Hausa."
 
     elif task == "afrixnli":
