@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, PeftModel
 from datasets import load_dataset, concatenate_datasets, Dataset, Value
-from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM, WeightedSFTTrainer
+from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM 
 from torch.nn import CrossEntropyLoss
 
 
