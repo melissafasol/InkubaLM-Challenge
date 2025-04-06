@@ -206,9 +206,9 @@ def generate_afrixnli_swahili(n_entail=100, n_neutral=100, n_contra=100, source=
 
     def make_samples(label_id, n):
         return [{
-            "inputs": random.choice(premise_pairs[label_id]),
-            "targets": label_id
-        } for _ in range(n)]
+        "inputs": random.choice(premise_pairs[str(label_id)]),
+        "targets": str(label_id)  # make sure target is also a string
+    } for _ in range(n)]
 
     samples = (
         make_samples(0, n_entail) +
@@ -300,9 +300,9 @@ def generate_afrixnli_hausa(n_entail=100, n_neutral=100, n_contra=100, source="s
 
     def make_samples(label_id, n):
         return [{
-            "inputs": random.choice(premise_pairs[label_id]),
-            "targets": label_id
-        } for _ in range(n)]
+        "inputs": random.choice(premise_pairs[str(label_id)]),
+        "targets": str(label_id)  # make sure target is also a string
+    } for _ in range(n)]
 
     samples = (
         make_samples(0, n_entail) +
