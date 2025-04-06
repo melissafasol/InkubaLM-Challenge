@@ -375,37 +375,31 @@ def update_instruction(row):
 
     return row["instruction"]  # fallback if no match
 
-# === Sentiment Preprocessing ===
 def preprocess_sentiment_dataframe(df):
     df = df.copy()
     df['inputs'] = df['inputs'].astype(str).apply(clean_text)
 
-    # Filter out problematic rows
     to_remove = df['inputs'].apply(has_repeated_punctuation) | df['inputs'].apply(has_repeated_words)
-    removed_df = df[to_remove].copy()
-    cleaned_df = df[~to_remove].copy()
+    df = df[~to_remove].copy()
 
-    # Normalize labels
     label_map = {
         'kyakkyawa': 'positive', 'tsaka-tsaki': 'neutral', 'wastani': 'neutral',
         'korau': 'negative', 'positive': 'positive', 'neutral': 'neutral', 'negative': 'negative'
     }
-    cleaned_df['targets'] = cleaned_df['targets'].str.lower().map(label_map)
-    cleaned_df = cleaned_df.dropna(subset=['targets'])
+    df['targets'] = df['targets'].str.lower().map(label_map)
+    df = df.dropna(subset=['targets'])
 
-    # Update instruction field
-    cleaned_df["instruction"] = cleaned_df.apply(update_instruction, axis=1)
+    df["instruction"] = df.apply(update_instruction, axis=1)
 
-    return cleaned_df, removed_df
+    return df
 
-# === Machine Translation Preprocessing ===
 def preprocess_mt_dataframe(df):
     df = df.copy()
 
-    df['inputs'] = df['inputs'].str.strip()
-    df['targets'] = df['targets'].str.strip()
+    df['inputs'] = df['inputs'].str.strip().apply(clean_text)
+    df['targets'] = df['targets'].str.strip().apply(clean_text)
     df['instruction'] = df['instruction'].str.strip()
-
+    
     df['inputs'] = df['inputs'].str.replace(r"&gt;", ">", regex=True)
     df['targets'] = df['targets'].str.replace(r"&gt;", ">", regex=True)
 
@@ -413,24 +407,18 @@ def preprocess_mt_dataframe(df):
     df = df[df['inputs'].str.len() > 3]
     df = df[df['targets'].str.len() > 3]
 
-    df['inputs'] = df['inputs'].apply(clean_text)
-    df['targets'] = df['targets'].apply(clean_text)
-
-    # Update instruction field
     df["instruction"] = df.apply(update_instruction, axis=1)
 
-    df['text_input'] = df['instruction'] + "\n" + df['inputs']
-    return df[['ID', 'langs', 'instruction', 'inputs', 'targets', 'text_input']]
+    return df
+
 
 
 def preprocess_nli_dataframe(df):
     df = df.copy()
 
-    # Clean + normalize text
     df['inputs'] = df['inputs'].astype(str).str.strip().str.lower()
     df['instruction'] = df['instruction'].astype(str).str.strip()
 
-    # Assign numeric, task-specific instruction
     def assign_classification_instruction(row):
         if row["langs"] == "swa":
             return "Chagua jibu sahihi: 0 (Chanya), 1 (Wastani), 2 (Hasi)."
@@ -441,7 +429,4 @@ def preprocess_nli_dataframe(df):
 
     df["instruction"] = df.apply(assign_classification_instruction, axis=1)
 
-    # Build simple prompt
-    df['text_input'] = df['instruction'] + "\n" + df['inputs']
-
-    return df[['ID', 'langs', 'instruction', 'inputs', 'text_input', 'targets']]
+    return df
