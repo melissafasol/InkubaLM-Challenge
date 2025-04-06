@@ -420,13 +420,16 @@ def preprocess_nli_dataframe(df):
     df['instruction'] = df['instruction'].astype(str).str.strip()
 
     def assign_classification_instruction(row):
-        if row["langs"] == "swa":
+        if row["langs"] in ["swa", "swahili"]:
             return "Chagua jibu sahihi: 0 (Chanya), 1 (Wastani), 2 (Hasi)."
-        elif row["langs"] == "hau":
+        elif row["langs"] in ["hau", "hausa"]:
             return "Zaɓi: 0 (Kyakkyawa), 1 (Tsaka-tsaki), 2 (Korau)."
         else:
             return "Chagua daraja sahihi: 0, 1, au 2."
 
     df["instruction"] = df.apply(assign_classification_instruction, axis=1)
+
+    # 🔁 Ensure targets are strings like '0', '1', '2'
+    df['targets'] = df['targets'].astype(str)
 
     return df
