@@ -131,44 +131,6 @@ def balance_target_lengths(df, task_column='task', reference_task='mt', repetiti
     return df_balanced
 
 
-def plot_target_lengths(df_before, df_after, task_column='task'):
-    """
-    Plot target lengths before and after balancing.
-    
-    Args:
-        df_before (DataFrame): DataFrame before balancing
-        df_after (DataFrame): DataFrame after balancing
-        task_column (str): Name of the task column
-    """
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-    
-    # Before balancing
-    task_stats_before = {}
-    for task in df_before[task_column].unique():
-        mask = df_before[task_column] == task
-        lengths = df_before.loc[mask, 'targets'].apply(lambda x: len(x.split()))
-        task_stats_before[task] = lengths.mean()
-    
-    # After balancing
-    task_stats_after = {}
-    for task in df_after[task_column].unique():
-        mask = df_after[task_column] == task
-        lengths = df_after.loc[mask, 'targets'].apply(lambda x: len(x.split()))
-        task_stats_after[task] = lengths.mean()
-    
-    # Plotting
-    ax1.bar(task_stats_before.keys(), task_stats_before.values())
-    ax1.set_title('Average Target Length Before Balancing')
-    ax1.set_ylabel('Average number of tokens')
-    
-    ax2.bar(task_stats_after.keys(), task_stats_after.values())
-    ax2.set_title('Average Target Length After Balancing')
-    
-    plt.tight_layout()
-    #plt.savefig('target_length_comparison.png')
-    plt.show()
-    #plt.close()
-
 
 def formatting_prompts_func(example):
     """
@@ -392,3 +354,55 @@ def apply_inference_to_test_data(model, tokenizer, test_dataset):
     df.loc[mask, 'Response'] = df.loc[mask, 'generated']
     
     return df
+
+def plot_target_lengths(df_before, df_after, task_column='task'):
+    """
+    Pretty plot of average target lengths before and after token balancing.
+    """
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    # Define tasks and colors
+    tasks = sorted(df_before[task_column].unique())
+    colors = plt.cm.Set2.colors[:len(tasks)]
+    color_map = {task: colors[i] for i, task in enumerate(tasks)}
+
+    # Compute average token lengths
+    lengths_before = {
+        task: df_before[df_before[task_column] == task]['targets']
+        .apply(lambda x: len(str(x).split()))
+        .mean()
+        for task in tasks
+    }
+
+    lengths_after = {
+        task: df_after[df_after[task_column] == task]['targets']
+        .apply(lambda x: len(str(x).split()))
+        .mean()
+        for task in tasks
+    }
+
+    # Plot BEFORE
+    ax1.bar(lengths_before.keys(), lengths_before.values(),
+            color=[color_map[task] for task in tasks])
+    ax1.set_title("Average target length\nbefore balancing", fontsize=16)
+    ax1.set_ylabel("Avg number of tokens", fontsize=12)
+    ax1.set_xlabel("Task", fontsize=12)
+
+    # Plot AFTER
+    ax2.bar(lengths_after.keys(), lengths_after.values(),
+            color=[color_map[task] for task in tasks])
+    ax2.set_title("Average target length\nafter balancing", fontsize=16)
+    ax2.set_xlabel("Task", fontsize=12)
+
+    # Clean look: remove bounding boxes
+    for ax in (ax1, ax2):
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.tick_params(axis='x', labelrotation=10, labelsize=11)
+        ax.tick_params(axis='y', labelsize=11)
+        ax.grid(axis='y', linestyle='--', alpha=0.5)
+
+    plt.tight_layout()
+    plt.show()
