@@ -355,6 +355,67 @@ def apply_inference_to_test_data(model, tokenizer, test_dataset):
     
     return df
 
+def apply_inference_to_test_data_xnli_change(model, tokenizer, test_dataset):
+    """
+    Apply inference to test dataset with proper label mapping for XNLI and sentiment tasks.
+
+    Args:
+        model: Fine-tuned model
+        tokenizer: Tokenizer
+        test_dataset: Dataset or DataFrame with task-labeled examples
+
+    Returns:
+        DataFrame: With columns [ID, generated, Response]
+    """
+
+    df = pd.DataFrame(test_dataset)
+    model.eval()
+
+    # Generate text completions
+    tqdm.pandas(desc="Generating responses")
+    df["generated"] = df.progress_apply(
+        lambda row: generate_response(model, tokenizer, formatting_prompts_func(row)),
+        axis=1
+    )
+
+    # Initialize empty response column
+    df["Response"] = ""
+
+    # ----- XNLI Mapping -----
+    def map_xnli_prediction(pred):
+        pred = str(pred).strip().lower()
+        if "true" in pred:
+            return 0
+        elif "neither" in pred:
+            return 1
+        elif "false" in pred:
+            return 2
+        return -1  # unrecognized
+
+    mask_xnli = df["ID"].str.contains("afrixnli")
+    df.loc[mask_xnli, "Response"] = df.loc[mask_xnli, "generated"].apply(map_xnli_prediction)
+
+    # ----- Sentiment Mapping -----
+    def encode_sentiment_label(label):
+        label = label.strip().lower()
+        if any(x in label for x in ["chanya", "kyakkyawa", "positive"]):
+            return 0
+        elif any(x in label for x in ["wastani", "tsaka", "neutral"]):
+            return 1
+        elif any(x in label for x in ["hasi", "korau", "negative"]):
+            return 2
+        return -1
+
+    mask_sent = df["ID"].str.contains("sentiment")
+    df.loc[mask_sent, "Response"] = df.loc[mask_sent, "generated"].apply(encode_sentiment_label)
+
+    # ----- MT Mapping -----
+    mask_mt = df["ID"].str.contains("mt_")
+    df.loc[mask_mt, "Response"] = df.loc[mask_mt, "generated"]
+
+    return df[["ID", "generated", "Response"]]
+
+
 def plot_target_lengths(df_before, df_after, task_column='task'):
     """
     Pretty plot of average target lengths before and after token balancing.
