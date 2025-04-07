@@ -19,43 +19,50 @@ def load_dataset_by_tag(dataset_type, tag, split='train'):
 
 def load_and_combine_datasets(tag, split='train'):
     """
-    Load and combine multiple datasets with common columns.
+    Load and combine multiple datasets with all unique columns (union).
+    Empty strings are used for missing values.
     
     Args:
         tag (str): Tag for the datasets (Train, Test)
         split (str): Split to load (train, test)
         
     Returns:
-        Dataset: Combined dataset with common columns
+        Dataset: Combined dataset with all unique columns
     """
     # Load datasets with the given split
     se_dataset = load_dataset_by_tag("lelapa/Sentiment", tag, split)
     mt_dataset = load_dataset_by_tag("lelapa/MT", tag, split)
     xn_dataset = load_dataset_by_tag("lelapa/XNLI", tag, split)
 
-    # Identify common columns
-    common_columns = list(set(se_dataset.column_names) & 
-                          set(mt_dataset.column_names) & 
-                          set(xn_dataset.column_names))
-    print(f"Common Columns: {common_columns}")
+    # Identify all unique columns (union)
+    all_columns = list(set(se_dataset.column_names) | 
+                      set(mt_dataset.column_names) | 
+                      set(xn_dataset.column_names))
+    print(f"All Columns: {all_columns}")
 
-    # Keep only common columns
-    se_dataset = se_dataset.remove_columns([col for col in se_dataset.column_names 
-                                            if col not in common_columns])
-    mt_dataset = mt_dataset.remove_columns([col for col in mt_dataset.column_names 
-                                            if col not in common_columns])
-    xn_dataset = xn_dataset.remove_columns([col for col in xn_dataset.column_names 
-                                            if col not in common_columns])
+    # Function to ensure dataset has all columns, filling missing ones with empty strings
+    def ensure_all_columns(dataset, all_cols):
+        # Add each missing column one by one
+        for col in all_cols:
+            if col not in dataset.column_names:
+                # Create array of empty strings with the same length as the dataset
+                empty_column = [""] * len(dataset)
+                dataset = dataset.add_column(col, empty_column)
+        
+        return dataset
 
-    # Convert 'targets' column to string type
-    se_dataset = se_dataset.cast_column("targets", Value("string"))
-    mt_dataset = mt_dataset.cast_column("targets", Value("string"))
-    xn_dataset = xn_dataset.cast_column("targets", Value("string"))
+    # Ensure all datasets have all columns
+    se_dataset = ensure_all_columns(se_dataset, all_columns)
+    mt_dataset = ensure_all_columns(mt_dataset, all_columns)
+    xn_dataset = ensure_all_columns(xn_dataset, all_columns)
 
-    # Concatenate datasets
-    combined_dataset = concatenate_datasets([se_dataset, mt_dataset, xn_dataset])
+    # Make sure 'targets' column is string type if it exists in all datasets
+    if "targets" in all_columns:
+        se_dataset = se_dataset.cast_column("targets", Value("string"))
+        mt_dataset = mt_dataset.cast_column("targets", Value("string"))
+        xn_dataset = xn_dataset.cast_column("targets", Value("string"))
 
-    return combined_dataset
+    return se_dataset, mt_dataset, xn_dataset
 
 
 def extract_task_from_id(id_string):
@@ -123,28 +130,6 @@ def balance_target_lengths(df, task_column='task', reference_task='mt', repetiti
     
     return df_balanced
 
-def balance_by_row_duplication(df, task_column='task', reference_task='mt'):
-    """
-    Balance dataset by duplicating underrepresented task rows instead of repeating the target string.
-    """
-    df_balanced = df.copy()
-    
-    # Calculate average number of samples per task
-    task_counts = df[task_column].value_counts()
-    max_count = task_counts[reference_task]
-
-    # Duplicate rows to match max task count
-    balanced_parts = []
-    for task, count in task_counts.items():
-        task_df = df[df[task_column] == task]
-        repeat_factor = int(np.ceil(max_count / count))
-        balanced_task_df = pd.concat([task_df] * repeat_factor, ignore_index=True).sample(n=max_count, random_state=42)
-        balanced_parts.append(balanced_task_df)
-
-    df_balanced = pd.concat(balanced_parts, ignore_index=True)
-    return df_balanced
-
-
 
 def plot_target_lengths(df_before, df_after, task_column='task'):
     """
@@ -195,32 +180,47 @@ def formatting_prompts_func(example):
     Returns:
         str: Formatted prompt
     """
+    premise = example['premise']
+    premise = premise+'\n' if len(premise) else ''
     if example['targets'] is not None:
-        return f"### Instruction: {example['instruction']}\n### Input: {example['inputs']}\n### Response: {example['targets']}"
-    return f"### Instruction: {example['instruction']}\n### Input: {example['inputs']}\n### Response:"
+        return f"### Instruction: {example['instruction']}\n### Input: {premise}{example['inputs']}\n### Response: {example['targets']}"
+    return f"### Instruction: {example['instruction']}\n### Input: {premise}{example['inputs']}\n### Response:"
 
 
-def setup_model_and_tokenizer(model_name, use_4bit=True):
-
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=use_4bit,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16,
-    )
-
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
-
-    hf_token = os.environ.get("HF_TOKEN", None)  # 👈 fetch token from env or default
-
+def setup_model_and_tokenizer(model_name, token, use_4bit=True):
+    """
+    Set up model and tokenizer for QLoRA fine-tuning.
     
+    Args:
+        model_name (str): Name of the base model
+        use_4bit (bool): Whether to use 4-bit quantization
+        
+    Returns:
+        tuple: (model, tokenizer, bnb_config)
+    """
+    # Define BitsAndBytes config for quantization
+    if use_4bit:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True,
+        )
+    else:
+        bnb_config = None
+    
+    # Load model with quantization config
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         quantization_config=bnb_config,
         device_map="auto",
-        token=hf_token if hf_token and hf_token != "----" else None,
+        token=token,
     )
-
+    
+    # Load tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
+    tokenizer.pad_token = tokenizer.eos_token
+    
     return model, tokenizer, bnb_config
 
 
@@ -253,24 +253,13 @@ def apply_lora_adapters(model, r=8, lora_alpha=16, dropout=0.05):
     
     return model
 
-def get_class_weights(dataset, class_names=None):
-    from collections import Counter
-
-    label_counts = Counter(dataset["targets"])
-    if class_names is None:
-        class_names = list(label_counts.keys())
-
-    weights = [1.0 / label_counts[label] if label_counts[label] > 0 else 0.0 for label in class_names]
-    weights = torch.tensor(weights)
-    return weights / weights.sum()
-
 
 def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3):
     """
-    Set up SFTTrainer for fine-tuning.
+    Set up SFTTrainer for direct fine-tuning.
     
     Args:
-        model: Model with LoRA adapters
+        model: Model to fine-tune
         dataset: Training dataset
         tokenizer: Tokenizer
         output_dir (str): Output directory for checkpoints
@@ -289,9 +278,12 @@ def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3):
     # Training arguments
     train_args = SFTConfig(
         output_dir=output_dir,
-        max_seq_length=512,
+        max_seq_length=256,
         num_train_epochs=num_epochs,
         save_strategy="epoch",
+        optim = 'adamw_bnb_8bit',
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=8,
         logging_steps=10,
         save_total_limit=2,
         report_to=[],  # Disable wandb
@@ -307,7 +299,6 @@ def setup_trainer(model, dataset, tokenizer, output_dir, num_epochs=3):
     )
     
     return trainer
-
 
 
 def generate_response(model, tokenizer, prompt, max_new_tokens=20):
@@ -331,11 +322,7 @@ def generate_response(model, tokenizer, prompt, max_new_tokens=20):
             max_new_tokens=max_new_tokens,
             eos_token_id=tokenizer.eos_token_id,
             pad_token_id=tokenizer.eos_token_id,
-            do_sample=True,
-            top_k=50,
-            top_p=0.9,
-            temperature=0.8,
-            repetition_penalty=1.2
+            do_sample=False
         )
 
     generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
@@ -405,149 +392,3 @@ def apply_inference_to_test_data(model, tokenizer, test_dataset):
     df.loc[mask, 'Response'] = df.loc[mask, 'generated']
     
     return df
-
-def display_formatted_examples(df, num_examples=2):
-    """
-    Display formatted examples for each task.
-    
-    Args:
-        df (DataFrame): DataFrame containing the examples
-        num_examples (int): Number of examples to display per task
-    """
-    for task in df.task.unique():
-        print(f"\n\n{'='*40}\nTask: {task}\n{'='*40}")
-        mask = df.task == task
-        for i, (_, row) in enumerate(df[mask].iterrows()):
-            if i >= num_examples:
-                break
-                
-            print(f"\nExample {i+1}:")
-            print("-" * 40)
-            formatted = formatting_prompts_func(row)
-            print(formatted)
-            print("-" * 40)
-            
-
-def balance_target_lengths(
-    df,
-    task_column='task',
-    target_column='targets',
-    reference_task='mt',
-    repetition_factor=None,
-    tokenizer=str.split  # Tokenizer function, defaults to whitespace split
-):
-    """
-    Balance target sequence lengths by repeating shorter targets.
-
-    Args:
-        df (DataFrame): DataFrame containing task and targets columns
-        task_column (str): Name of the task column
-        target_column (str): Name of the target column
-        reference_task (str): Task with longer sequences to use as reference
-        repetition_factor (int or None): If set, uses fixed repetition. If None, uses dynamic repetition based on average length of reference task.
-        tokenizer (callable): Tokenizer function to estimate token lengths. Defaults to str.split (whitespace split).
-
-    Returns:
-        DataFrame: DataFrame with balanced target lengths
-    """
-    df_balanced = df.copy()
-
-    # Compute average length of reference task targets
-    ref_mask = df_balanced[task_column] == reference_task
-    reference_lengths = df_balanced.loc[ref_mask, target_column].apply(lambda x: len(tokenizer(x)))
-    avg_ref_len = reference_lengths.mean()
-
-    for task in df_balanced[task_column].unique():
-        if task != reference_task:
-            mask = df_balanced[task_column] == task
-            if repetition_factor is not None:
-                # Fixed repetition
-                df_balanced.loc[mask, target_column] = df_balanced.loc[mask, target_column].apply(
-                    lambda x: ' '.join([x] * repetition_factor)
-                )
-            else:
-                # Dynamic repetition to match reference avg length
-                df_balanced.loc[mask, target_column] = df_balanced.loc[mask, target_column].apply(
-                    lambda x: (x + ' ') * max(1, round(avg_ref_len / len(tokenizer(x))))
-                )
-
-    return df_balanced
-
-def setup_trainer_ab_testing(
-    model, 
-    dataset, 
-    tokenizer, 
-    output_dir, 
-    num_epochs=3, 
-    val_dataset=None,
-    log_token_lengths=False,
-    log_per_task_loss=False
-):
-    """
-    Set up SFTTrainer for fine-tuning with optional logging and evaluation.
-
-    Args:
-        model: Model with LoRA adapters
-        dataset: Training dataset
-        tokenizer: Tokenizer
-        output_dir (str): Output directory for checkpoints
-        num_epochs (int): Number of training epochs
-        val_dataset (Dataset, optional): Validation dataset for evaluation
-        log_token_lengths (bool): If True, print avg token length per task
-        log_per_task_loss (bool): If True, logs loss by task to console (lightweight)
-
-    Returns:
-        SFTTrainer: Configured trainer
-    """
-
-    # Optional token length logging
-    if log_token_lengths:
-        dataset_df = dataset.to_pandas()
-        dataset_df["token_len"] = dataset_df["targets"].apply(lambda x: len(tokenizer.tokenize(x)))
-        print("\n🔍 Token length stats by task:")
-        print(dataset_df.groupby("task")["token_len"].describe())
-
-    # Optional task grouping for per-task logging (lightweight)
-    if log_per_task_loss:
-        print("\n🧪 Note: to log true per-task loss you'd need to modify the loss function with labels.")
-        print("This option is for prep only — actual per-task logging requires a custom training loop.")
-
-    # Define response template for proper label masking
-    response_template_with_context = "\n### Response:"
-    response_template_ids = tokenizer.encode(response_template_with_context, add_special_tokens=False)[2:]
-
-    # Data collator for causal LM masking
-    collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer)
-
-    train_args = SFTConfig(
-    output_dir=output_dir,
-    max_seq_length=512,
-    num_train_epochs=3,
-    save_strategy="steps",                # 👈 match eval strategy!
-    save_steps=10,                        # 👈 how often to save
-    logging_dir=f"{output_dir}/logs",
-    logging_steps=10,
-    eval_steps=10,
-    save_total_limit=2,
-    report_to="none",
-    disable_tqdm=False,
-    logging_first_step=True,
-    per_device_train_batch_size=4,
-    per_device_eval_batch_size=4,
-    evaluation_strategy="steps",
-    load_best_model_at_end=True
-)
-
-
-    # Trainer setup
-    trainer = SFTTrainer(
-        model=model,
-        train_dataset=dataset,
-        eval_dataset=val_dataset,
-        args=train_args,
-        formatting_func=formatting_prompts_func,
-        data_collator=collator,
-    )
-
-    return trainer
-
