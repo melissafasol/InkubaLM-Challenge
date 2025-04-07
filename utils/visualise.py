@@ -29,14 +29,14 @@ def plot_target_lengths(df_before, df_after, task_column='task'):
     # Plot BEFORE
     ax1.bar(lengths_before.keys(), lengths_before.values(),
             color=[color_map[task] for task in tasks])
-    ax1.set_title("Average target length\nbefore balancing", fontsize=14)
+    ax1.set_title("Average target length\nbefore balancing", fontsize=16)
     ax1.set_ylabel("Avg number of tokens", fontsize=12)
     ax1.set_xlabel("Task", fontsize=12)
 
     # Plot AFTER
     ax2.bar(lengths_after.keys(), lengths_after.values(),
             color=[color_map[task] for task in tasks])
-    ax2.set_title("Average target length\nafter balancing", fontsize=14)
+    ax2.set_title("Average target length\nafter balancing", fontsize=16)
     ax2.set_xlabel("Task", fontsize=12)
 
     # Clean look: remove bounding boxes
