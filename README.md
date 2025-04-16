@@ -1,5 +1,5 @@
 
-# **Evaluating InkubaLM: Fine-Tuning a Lightweight African Language Model** 
+# **InkubaLM: Fine-Tuning a Lightweight African Language Model** 
 
 Welcome! This repository documents my work for the Lelapa AI Buzuzu-Mavi challenge, where I fine-tuned the InkubaLM model using efficient low-resource techniques. My goal: keep the model small, but smart.
 
