@@ -1,34 +1,29 @@
 
 ## **Evaluating InkubaLM: Fine-Tuning a Lightweight African Language Model** 
 
-Welcome! This repository documents my work for the Lelapa AI Buzuzu-Mavi challenge, where I fine-tuned the InkubaLM model on three multilingual NLP tasks using efficient low-resource techniques. My goal: keep the model small, but smart.
-
-## 🚀 Overview
-**InkubaLM** is an autoregressive language model trained on five African languages:IsiZulu, Yoruba, Hausa, Swahili, and IsiXhosa.  In this challenge, I fine-tuned it for:
-
-1. Sentiment Analysis — classify text as positive, negative, or neutral.
-
-2. African XNLI — determine whether a hypothesis follows from a premise.
-
-3. Machine Translation (MT) — translate from English into Swahili or Hausa.
+Welcome! This repository documents my work for the Lelapa AI Buzuzu-Mavi challenge, where I fine-tuned the InkubaLM model using efficient low-resource techniques. My goal: keep the model small, but smart.
 
 
-## 📊 Baseline Performance
+## Baseline Performance
 Before fine-tuning, I evaluated the pretrained model across all tasks and languages. Hausa performance was particularly weak on translation and inference.
 
-Baseline Zindi Score: 0.1824
+📊 Baseline Zindi Score: 0.1824
 (Zindi score = average of F1/ChrF scores across all tasks)
 
-## 🛠️ Fine-Tuning Strategy
-### ✅ QLoRA = LoRA + 4-bit Quantization
+## Fine-Tuning Strategy: QLoRA = LoRA + 4-bit Quantization
 To fine-tune efficiently on limited hardware, I combined:
 1. LoRA Adapters: Freeze the base model, train only small injected matrices.
 2. 4-bit Quantization: Reduce memory by compressing weights from 32-bit → 4-bit.
 
 ### Result: Dramatically reduced memory requirements with minimal performance loss.
 
-## ⚠️ Challenge: Token Imbalance
+## Challenge: Token Imbalance
+
 Multitask training uses token-level loss. Since translation outputs are longer than sentiment/inference labels, MT dominated training loss.
+
+![Token Imbalance Visualization](https://github.com/user-attachments/assets/1999e7c4-bfb0-4054-aaf0-884715f6f900)
+
+*Figure: Token length distribution before and after balancing.*
 
 ### Task Output Lengths
 - Classification (sentiment/XNLI): ~1–3 tokens (e.g., "positive", "neutral")
