@@ -3,7 +3,6 @@
 
 Welcome! This repository documents my work for the Lelapa AI Buzuzu-Mavi challenge, where I fine-tuned the InkubaLM model using efficient low-resource techniques. My goal: keep the model small, but smart.
 
-
 ## Baseline Performance
 Before fine-tuning, I evaluated the pretrained model across all tasks and languages. Hausa performance was particularly weak on translation and inference.
 
@@ -31,14 +30,12 @@ Multitask training uses token-level loss. Since translation outputs are longer t
 (e.g., "I hope you're having a good day so far" → "Natumai unakuwa na siku njema hadi sasa" in Swahili)
 
 ## Solution: Token Balancing
-I repeated or padded short-output examples (sentiment/XNLI) to ~18 tokens to ensure each task contributed an equal number of tokens to the loss.
+I padded short-output examples (sentiment/XNLI) to ~18 tokens to ensure each task contributed an equal number of tokens to the loss.
 
-## ✅ Post-Fine-Tuning Performance
-After applying QLoRA and token balancing:
 ### New Zindi Score: 0.35 🎉
 Biggest gain: translation & inference improved significantly.
 Remaining issue: sentiment classification still underperformed.
 
-## 🔍 SHAP Analysis: Token-Level Insights
+## Model Evaluation with SHAP: Token-Level Insights
 To interpret model behavior, I used SHAP (SHapley Additive exPlanations):
 SHAP assigns each token a value indicating how much it influenced the model’s prediction.
