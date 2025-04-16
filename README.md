@@ -1,5 +1,5 @@
 
-## **Evaluating InkubaLM: Fine-Tuning a Lightweight African Language Model** 
+# **Evaluating InkubaLM: Fine-Tuning a Lightweight African Language Model** 
 
 Welcome! This repository documents my work for the Lelapa AI Buzuzu-Mavi challenge, where I fine-tuned the InkubaLM model using efficient low-resource techniques. My goal: keep the model small, but smart.
 
@@ -15,9 +15,9 @@ To fine-tune efficiently on limited hardware, I combined:
 1. LoRA Adapters: Freeze the base model, train only small injected matrices.
 2. 4-bit Quantization: Reduce memory by compressing weights from 32-bit → 4-bit.
 
-### Result: Dramatically reduced memory requirements with minimal performance loss.
+**Result**: Dramatically reduced memory requirements with minimal performance loss.
 
-## Challenge: Token Imbalance
+### Challenge: Token Imbalance
 
 Multitask training uses token-level loss. Since translation outputs are longer than sentiment/inference labels, MT dominated training loss.
 
@@ -30,7 +30,7 @@ Multitask training uses token-level loss. Since translation outputs are longer t
 - Translation: ~15–30 tokens
 (e.g., "I hope you're having a good day so far" → "Natumai unakuwa na siku njema hadi sasa" in Swahili)
 
-### 🧪 Solution: Token Balancing
+## Solution: Token Balancing
 I repeated or padded short-output examples (sentiment/XNLI) to ~18 tokens to ensure each task contributed an equal number of tokens to the loss.
 
 ## ✅ Post-Fine-Tuning Performance
