@@ -1,3 +1,7 @@
+'''Script to implement a model fine-tuned on sentiment analysis, XNLI,
+and machine translation tasks using LoRA adapters, quantization, and token
+balancing techniques.'''
+
 import os 
 import random
 import warnings

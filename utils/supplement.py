@@ -1,4 +1,4 @@
-'''Script to data augmentation to the sentiment datasets. '''
+'''Script to data augmentation to the sentiment datasets.'''
 
 import pandas as pd
 import random

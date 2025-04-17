@@ -1,3 +1,5 @@
+'''Evaluation script provided by Lelapa.'''
+
 import csv
 from collections import Counter
 
