@@ -3,6 +3,11 @@
 
 Welcome! This repository documents my work for the Lelapa AI Buzuzu-Mavi challenge, where I fine-tuned the InkubaLM model using efficient low-resource techniques. My goal: keep the model small, but smart.
 
+Notebooks:
+- [Data Exploration](notebooks/01_implementation.ipynb)
+- [Preprocessing](notebooks/02_model_evaluation.ipynb)
+- [Fine-Tuning](notebooks/03_plots.ipynb)
+
 ## Baseline Performance
 Before fine-tuning, I evaluated the pretrained model across all tasks and languages. Hausa performance was particularly weak on translation and inference.
 
