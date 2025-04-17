@@ -37,5 +37,7 @@ Biggest gain: translation & inference improved significantly.
 Remaining issue: sentiment classification still underperformed.
 
 ## Model Evaluation with SHAP: Token-Level Insights
-To interpret model behavior, I used SHAP (SHapley Additive exPlanations):
-SHAP assigns each token a value indicating how much it influenced the model’s prediction.
+I used SHAP (SHapley Additive exPlanations) to understand which tokens influenced sentiment predictions. It helped highlight issues like poor tokenization (e.g., splitting Chanya into “ch” + “anya”) and cross-language artifacts (like English words in Swahili predictions). After QLoRA fine-tuning, the model showed more balanced token contributions—but still revealed areas for improvement in data quality and preprocessing.
+![image](https://github.com/user-attachments/assets/0217d66b-394e-4588-9f34-461d95fa2dd5)
+
+
